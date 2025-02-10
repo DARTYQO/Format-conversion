@@ -1,66 +1,65 @@
+
 ![Your Language Word-2](https://github.com/user-attachments/assets/5f001d9a-4c75-4d83-8493-846eec8717cd)
 # File Converter Pro 🔄
 
-## סקירה כללית
-פרויקט Format-conversion כולל את Converter File Pro  אפליקציית המרה, מיזוג ופיצול קבצים רב-תכליתית, המספקת פתרון מלא וידידותי למשתמש להמרת מסמכים,מוזיקה,וידאו,וקבצים נוספים.
+## Overview
+The Format-conversion project includes the Converter File Pro application, a versatile file conversion, merging, and splitting tool that provides a complete and user-friendly solution for managing various file formats.
 
-## תכונות עיקריות ✨
-- **המרת מסמכים**: תמיכה בהמרה בין פורמטים שונים
+## Key Features ✨
+- **Document Conversion**: Supports conversion between different formats
   * PDF
   * DOCX
   * TXT
 
+- **Advanced Functionality**:
+  * File merging
+  * File splitting
+  * Drag and drop support
+  * Preserving document formatting
+  * Support for multiple text encodings
 
-- **פונקציונליות מתקדמת**:
-  * מיזוג קבצים
-  * פיצול קבצים
-  * תמיכה בגרירה ושחרור
-  * שמירה על עיצוב מסמכים
-  * תמיכה במספר קידודי טקסט
-
-## דרישות מערכת 💻
+## System Requirements 💻
 - Python 3.7+
 - PyQt5
 - python-docx
 - PyPDF2
 
-## התקנה 🛠️
+## Installation 🛠️
 ```bash
-git clone https://github.com/yourusername/file-converter-pro.git
-cd file-converter-pro
+git clone https://github.com/DARTYQO/Format-conversion.git
+cd Format-conversion
 pip install -r requirements.txt
 ```
 
-## הפעלה 🚀
-הרץ את הקוד בטרמינל
+## Running the Application 🚀
+Run the code in the terminal
 ```bash
-
 python main.py
 ```
 
-## הורד
-הורד גירסא יציבה עבור Windows.        
+## Download
+Download a stable version for Windows.
 
- https://github.com/DARTYQO/Format-conversion/releases
-## מדריך שימוש מהיר 📘
- * בחר קבצים להמרה
- * בחר פורמט יעד
- * לחץ "המר"
-  
-## תכונות נוספות 🔧
- * המרת קבצים בין פורמטים שונים
- * מיזוג קבצים
- * פיצול קבצים לפי גודל או מספר תווים
- * תמיכה בגרירה ושחרור
- * תמיכה במספר קידודי טקסט
- 
+https://github.com/DARTYQO/Format-conversion/releases
 
-## רישיון 📄
-הפרויקט מופץ תחת רישיון MIT - ראה קובץ LICENSE לפרטים נוספים.
+## Quick Usage Guide 📘
+* Select files for conversion
+* Choose target format
+* Click "Convert"
 
+## Additional Features 🔧
+* Convert files between different formats
+* Merge files
+* Split files by size or character count
+* Drag and drop support
+* Support for multiple text encodings
 
-## תמיכה ומשוב
- * למידע נוסף או דיווח על באגים, אנא צור קשר:
+## License 📄
+The project is distributed under the MIT license - see the LICENSE file for more details.
+
+## Support and Feedback
+* For more information or to report bugs, please contact:
 - 📧 Email: ch05341315656@gmail.com
 - 🌐 GitHub: https://github.com/DARTYQO/Format-conversion
+
 
