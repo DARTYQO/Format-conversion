@@ -50,8 +50,8 @@ python main.py
 
 ## תמיכה ומשוב
 למידע נוסף או דיווח על באגים, אנא צור קשר:
-- 📧 Email: support@fileconverterpro.com
-- 🌐 GitHub: [קישור לפרויקט]
+- 📧 Email: ch05341315656@gmail.com
+- 🌐 GitHub: [(https://github.com/DARTYQO/Format-conversion)]
 
 ## רישיון
 הפרויקט מופץ תחת רישיון MIT - ראה קובץ LICENSE לפרטים נוספים.
