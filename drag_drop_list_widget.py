@@ -30,6 +30,7 @@ class DragDropListWidget(QListWidget):
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
                 if file_path.endswith(('.pdf', '.docx', '.txt')):
+                    # בדיקה אם הקובץ כבר קיים ברשימה
                     exists = False
                     for i in range(self.count()):
                         if self.item(i).data(Qt.UserRole) == file_path:
@@ -43,6 +44,6 @@ class DragDropListWidget(QListWidget):
                         self.addItem(item)
                         if self.parent:
                             self.parent.selected_files.append(file_path)
-                            self.parent.status.showMessage(f"{self.count()} files selected")
+                            self.parent.status.showMessage(f"{self.count()} קבצים נבחרו")
         else:
             event.ignore()

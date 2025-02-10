@@ -1,7 +1,8 @@
 import os
+import sys
 import json
 import threading
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFileDialog, QComboBox, QToolBar, QStatusBar, QProgressBar, QMessageBox, QAction, QDialog, QFormLayout, QFrame, QCheckBox, QGroupBox, QListWidget, QListWidgetItem, QAbstractItemView, QMenu, QLineEdit, QTabWidget, QPushButton, QSpinBox
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFileDialog, QComboBox, QToolBar,QApplication, QStatusBar, QProgressBar, QMessageBox, QAction, QDialog, QFormLayout, QFrame, QCheckBox, QGroupBox, QListWidget, QListWidgetItem, QAbstractItemView, QMenu, QLineEdit, QTabWidget, QPushButton, QSpinBox
 from PyQt5.QtCore import Qt, QTextCodec, QFileInfo
 from PyQt5.QtGui import QIcon
 from PyPDF2 import PdfReader, PdfMerger
@@ -15,42 +16,55 @@ class FileConverterApp(QMainWindow):
     def __init__(self):
         super().__init__()
         
+        # הגדרת קידוד ברירת מחדל ל-UTF-8
         QTextCodec.setCodecForLocale(QTextCodec.codecForName('UTF-8'))
         
+        # הגדרת תיקיית ברירת מחדל
         self.output_folder = os.path.join(os.path.expanduser("~"), "Documents", "FileConverter")
         self.progress_bar = None
         self.format_combo = None
         self.output_dir = None
         self.last_output_dir = None
         
+        # יצירת תיקיית ברירת מחדל אם לא קיימת
         if not os.path.exists(self.output_folder):
             os.makedirs(self.output_folder)
         
+        # רשימת הקבצים שנבחרו
         self.selected_files = []
         
+        # הגדרת אייקון לתוכנה
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.ico")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         
+        # קריאה לפונקציות הראשוניות
         self.init_ui()
         self.create_menus()
         self.create_toolbar()
         
+        # הגדרת הממשק והטעינה
+        # self.setup_i18n()
         self.load_settings()
         
+        # הגדרת סגנון
         self.setStyleSheet(STYLE_SHEET)
 
     def init_ui(self):
+        """הגדרת ממשק המשתמש הראשי"""
         self.setWindowTitle("Format conversion")
         self.setGeometry(100, 100, 1000, 600)
         
+        # יצירת ווידג'ט מרכזי
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
+        # יצירת layout ראשי
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
         
+        # יצירת מסגרת ראשית
         main_frame = QFrame()
         main_frame.setObjectName("mainFrame")
         main_frame.setFrameStyle(QFrame.StyledPanel)
@@ -58,12 +72,15 @@ class FileConverterApp(QMainWindow):
         frame_layout.setContentsMargins(20, 20, 20, 20)
         frame_layout.setSpacing(20)
         
+        # יצירת טאבים
         self.tab_widget = QTabWidget()
         
+        # טאב טקסט (הקיים)
         text_tab = QWidget()
         text_layout = QVBoxLayout(text_tab)
         
-        files_group = QGroupBox("Selected Files")
+        # אזור שמאל - רשימת קבצים
+        files_group = QGroupBox("קבצים שנבחרו")
         files_layout = QVBoxLayout()
         
         self.files_list = DragDropListWidget(self)
@@ -75,218 +92,307 @@ class FileConverterApp(QMainWindow):
         
         files_group.setLayout(files_layout)
         
+        # אזור ימין - הגדרות
         right_layout = QVBoxLayout()
         
-        conversion_group = QGroupBox("Conversion Settings")
+        # הגדרות המרה
+        conversion_group = QGroupBox("הגדרות המרה")
         conversion_layout = QVBoxLayout()
         
-        format_layout = QFormLayout()
-        self.format_combo = QComboBox()
-        self.format_combo.addItems(['PDF', 'DOCX', 'TXT'])
-        self.format_combo.setToolTip("Select target format")
-        format_layout.addRow("Target Format", self.format_combo)
+        # כפתורי פורמט
+        format_layout = QHBoxLayout()
+        format_layout.setSpacing(10)
+        format_layout.setAlignment(Qt.AlignCenter)
         
-        self.preserve_format_cb = QCheckBox("Preserve Formatting")
-        self.preserve_format_cb.setChecked(True)
-        self.preserve_format_cb.setToolTip("Preserve the original document formatting")
+        # יצירת קבוצת כפתורים לפורמטים
+        self.format_buttons = []
+        formats = [
+            ('PDF', 'קובץ PDF - נפוץ לשיתוף מסמכים\nשומר על העיצוב המקורי'),
+            ('DOCX', 'מסמך Word - מתאים לעריכה\nניתן לערוך את התוכן והעיצוב'),
+            ('TXT', 'קובץ טקסט - פשוט וקל\nמתאים לטקסט בלבד ללא עיצוב')
+        ]
+        
+        for fmt, tooltip in formats:
+            btn = QPushButton(fmt)
+            btn.setObjectName("formatButton")
+            btn.setCheckable(True)
+            btn.setToolTip(tooltip)
+            btn.clicked.connect(lambda checked, f=fmt: self.on_format_selected(f))
+            format_layout.addWidget(btn)
+            self.format_buttons.append(btn)
+        
+        # בחירת הפורמט הראשון כברירת מחדל
+        if self.format_buttons:
+            self.format_buttons[0].setChecked(True)
+            self.selected_format = formats[0][0]
         
         conversion_layout.addLayout(format_layout)
-        conversion_layout.addWidget(self.preserve_format_cb)
-        conversion_layout.addStretch()
         
-        convert_btn = QPushButton("Convert")
+        # הגדרות נוספות
+        options_layout = QVBoxLayout()
+        options_layout.setSpacing(10)
+        
+        self.preserve_format_cb = QCheckBox("שמור על עיצוב")
+        self.preserve_format_cb.setChecked(True)
+        self.preserve_format_cb.setToolTip("שמור על עיצוב המסמך המקורי כולל גופנים, צבעים ותמונות")
+        
+        options_layout.addWidget(self.preserve_format_cb)
+        options_layout.addStretch()
+        
+        conversion_layout.addLayout(options_layout)
+        conversion_group.setLayout(conversion_layout)
+        
+        # כפתור המרה
+        convert_btn = QPushButton("המר")
         convert_btn.setMinimumHeight(50)
-        convert_btn.setToolTip("Start file conversion")
+        convert_btn.setToolTip("התחל המרת קבצים")
         convert_btn.clicked.connect(self.convert_files)
         conversion_layout.addWidget(convert_btn)
         
-        conversion_group.setLayout(conversion_layout)
         right_layout.addWidget(conversion_group)
         
-        merge_split_group = QGroupBox("Merge/Split Settings")
+        # הגדרות מיזוג ופיצול
+        merge_split_group = QGroupBox("הגדרות מיזוג ופיצול")
         merge_split_layout = QVBoxLayout()
         
+        # סוג פעולה
         action_layout = QFormLayout()
         self.action_combo = QComboBox()
-        self.action_combo.addItems(['Merge All', 'Merge by Type', 'Split by Size', 'Split by Character Count'])
-        self.action_combo.setToolTip("Select action type")
+        self.action_combo.addItems(['מיזוג הכל', 'מיזוג לפי סוג', 'פיצול לפי גודל', 'פיצול לפי מספר תווים'])
+        self.action_combo.setToolTip("בחר סוג פעולה")
         self.action_combo.currentIndexChanged.connect(self.on_action_changed)
-        action_layout.addRow("Action Type", self.action_combo)
+        action_layout.addRow("סוג פעולה", self.action_combo)
         
+        # הגדרות נוספות למיזוג
         self.merge_type_combo = QComboBox()
         self.merge_type_combo.addItems(['PDF', 'DOCX', 'TXT'])
-        self.merge_type_combo.setToolTip("Select file type for merging")
+        self.merge_type_combo.setToolTip("בחר סוג קובץ למיזוג")
         self.merge_type_combo.setVisible(False)
-        action_layout.addRow("File Type for Merging", self.merge_type_combo)
+        action_layout.addRow("סוג קובץ למיזוג", self.merge_type_combo)
         
+        # הגדרות נוספות לפיצול
         self.split_value = QSpinBox()
         self.split_value.setRange(1, 999999)
         self.split_value.setValue(1000)
         self.split_value.setVisible(False)
-        self.split_value_label = QLabel("Size in KB")
+        self.split_value_label = QLabel("גודל בKB")
         self.split_value_label.setVisible(False)
         action_layout.addRow(self.split_value_label, self.split_value)
         
         merge_split_layout.addLayout(action_layout)
         merge_split_layout.addStretch()
         
-        process_btn = QPushButton("Process")
+        # כפתור ביצוע
+        process_btn = QPushButton("בצע")
         process_btn.setMinimumHeight(50)
-        process_btn.setToolTip("Start merging/splitting files")
+        process_btn.setToolTip("התחל מיזוג/פיצול קבצים")
         process_btn.clicked.connect(self.process_files)
         merge_split_layout.addWidget(process_btn)
         
         merge_split_group.setLayout(merge_split_layout)
         right_layout.addWidget(merge_split_group)
         
+        # סידור הלייאוט של טאב טקסט
         text_layout_main = QHBoxLayout()
         text_layout_main.addWidget(files_group)
         text_layout_main.addLayout(right_layout)
         text_layout.addLayout(text_layout_main)
         
-        self.tab_widget.addTab(text_tab, "Text")
+        # הוספת הטאבים
+        self.tab_widget.addTab(text_tab, "טקסט")
         
+        # טאב אודיו
         audio_tab = QWidget()
         audio_layout = QVBoxLayout(audio_tab)
-        audio_label = QLabel("Convert Audio Files")
+        audio_label = QLabel("המרת קבצי אודיו")
         audio_drag_list = DragDropListWidget()
-        audio_convert_button = QPushButton("Convert Audio Files")
+        audio_convert_button = QPushButton("המר קבצי אודיו")
         audio_layout.addWidget(audio_label)
         audio_layout.addWidget(audio_drag_list)
         audio_layout.addWidget(audio_convert_button)
-        self.tab_widget.addTab(audio_tab, "Audio")
+        self.tab_widget.addTab(audio_tab, "אודיו")
         
+        # טאב וידאו
         video_tab = QWidget()
         video_layout = QVBoxLayout(video_tab)
-        video_label = QLabel("Convert Video Files")
+        video_label = QLabel("המרת קבצי וידאו")
         video_drag_list = DragDropListWidget()
-        video_convert_button = QPushButton("Convert Video Files")
+        video_convert_button = QPushButton("המר קבצי וידאו")
         video_layout.addWidget(video_label)
         video_layout.addWidget(video_drag_list)
         video_layout.addWidget(video_convert_button)
-        self.tab_widget.addTab(video_tab, "Video")
+        self.tab_widget.addTab(video_tab, "וידאו")
         
+        # טאב קוד
         code_tab = QWidget()
         code_layout = QVBoxLayout(code_tab)
-        code_label = QLabel("Convert Code Files")
+        code_label = QLabel("המרת קבצי קוד")
         code_drag_list = DragDropListWidget()
-        code_convert_button = QPushButton("Convert Code Files")
+        code_convert_button = QPushButton("המר קבצי קוד")
         code_layout.addWidget(code_label)
         code_layout.addWidget(code_drag_list)
         code_layout.addWidget(code_convert_button)
-        self.tab_widget.addTab(code_tab, "Code")
+        self.tab_widget.addTab(code_tab, "קוד")
         
+        # הוספת הטאבים לפריסה
         frame_layout.addWidget(main_frame)
         main_layout.addWidget(self.tab_widget)
         
+        # סרגל התקדמות
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         main_layout.addWidget(self.progress_bar)
         
+        # סרגל סטטוס
         self.status = QStatusBar()
         self.setStatusBar(self.status)
         
-        self.status.showMessage("Ready")
+        self.status.showMessage("מוכן")
 
     def create_menus(self):
+        """יצירת תפריטים"""
         menubar = self.menuBar()
         
-        file_menu = menubar.addMenu('File')
+        # תפריט קובץ
+        file_menu = menubar.addMenu('קובץ')
         
-        open_action = QAction('Open File', self)
+        # פתיחת קובץ
+        open_action = QAction('פתח קובץ', self)
         open_action.setShortcut('Ctrl+O')
         open_action.triggered.connect(self.select_files)
         file_menu.addAction(open_action)
         
-        add_folder_action = QAction("Add Folder", self)
+        # פתיחת תיקייה
+        add_folder_action = QAction("הוסף תיקייה", self)
         add_folder_action.triggered.connect(self.select_folder)
         file_menu.addAction(add_folder_action)
         
-        open_output_dir_action = QAction('Open Output Directory', self)
+        # פתיחת תיקיית יעד
+        open_output_dir_action = QAction('פתח תיקיית יעד', self)
         open_output_dir_action.setShortcut('Ctrl+D')
         open_output_dir_action.triggered.connect(self.open_output_directory)
         file_menu.addAction(open_output_dir_action)
         
-        clear_list_action = QAction("Clear List", self)
+        # ניקוי רשימה
+        clear_list_action = QAction("נקה רשימה", self)
         clear_list_action.triggered.connect(self.clear_file_list)
         file_menu.addAction(clear_list_action)
         
         file_menu.addSeparator()
         
-        exit_action = QAction('Exit', self)
+        # יציאה
+        exit_action = QAction('יציאה', self)
         exit_action.setShortcut('Ctrl+Q')
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
         
-        theme_menu = menubar.addMenu("Theme")
-        blue_theme_action = QAction("Blue", self)
+        # תפריט ערכת נושא
+        theme_menu = menubar.addMenu("ערכת נושא")
+        blue_theme_action = QAction("תכלת", self)
         blue_theme_action.triggered.connect(lambda: self.change_theme("blue"))
         theme_menu.addAction(blue_theme_action)
 
-        light_green_theme_action = QAction("Light Green", self)
+        light_green_theme_action = QAction("ירוק בהיר", self)
         light_green_theme_action.triggered.connect(lambda: self.change_theme("light_green"))
         theme_menu.addAction(light_green_theme_action)
 
-        yellow_theme_action = QAction("Yellow", self)
+        yellow_theme_action = QAction("צהוב", self)
         yellow_theme_action.triggered.connect(lambda: self.change_theme("yellow"))
         theme_menu.addAction(yellow_theme_action)
 
-        default_theme_action = QAction("Default", self)
+        default_theme_action = QAction("רגיל", self)
         default_theme_action.triggered.connect(lambda: self.change_theme("default"))
         theme_menu.addAction(default_theme_action)
         
-        settings_menu = menubar.addMenu("Settings")
-        change_output_folder_action = QAction("Select Output Directory", self)
+        # תפריט הגדרות
+        settings_menu = menubar.addMenu("הגדרות")
+        change_output_folder_action = QAction("בחירת תיקיית יעד", self)
         change_output_folder_action.triggered.connect(self.show_settings_dialog)
         settings_menu.addAction(change_output_folder_action)
         
-        help_menu = menubar.addMenu('Help')
+        # תפריט עזרה
+        help_menu = menubar.addMenu('עזרה')
         
-        about_action = QAction('About', self)
+        # אודות
+        about_action = QAction('אודות', self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
         
-        homepage_action = QAction('Homepage', self)
+        # אתר הבית
+        homepage_action = QAction('אתר הבית', self)
         homepage_action.triggered.connect(self.open_homepage)
         help_menu.addAction(homepage_action)
 
     def create_toolbar(self):
+        """יצירת סרגל כלים"""
+        # הוסף את הפונקציה הזו מהקוד המקורי שלך
         pass
 
     def show_about(self):
+        """הצגת חלון אודות"""
         about_text = """
-        File Converter - Version 2.0
+        ממיר קבצים - גרסה 2.0
         
-        A software for converting, merging, and splitting files.
-        Supports formats: PDF, DOCX, TXT
+        תוכנה להמרה, מיזוג ופיצול של קבצים.
+        תומכת בפורמטים: PDF, DOCX, TXT
         
-        Key Features:
-        - Convert between different formats
-        - Merge multiple files into one
-        - Split files by size or character count
-        - Drag and drop file support
-        - Support for multiple text encodings
-        - Innovative tab interface with support for:
-          * Text file conversion
-          * Audio file conversion
-          * Video file conversion
-          * Code file conversion
+        תכונות עיקריות:
+        - המרה בין פורמטים שונים
+        - מיזוג מספר קבצים לקובץ אחד
+        - פיצול קבצים לפי גודל או מספר תווים
+        - תמיכה בגרירה ושחרור של קבצים
+        - תמיכה בקידודי טקסט שונים
+        - ממשק טאבים חדשני עם תמיכה ב:
+          * המרת קבצי טקסט
+          * המרת קבצי אודיו
+          * המרת קבצי וידאו
+          * המרת קבצי קוד
         """
         
-        QMessageBox.about(self, "About File Converter", about_text)
+        QMessageBox.about(self, "אודות ממיר הקבצים", about_text)
 
     def open_homepage(self):
+        """פתיחת אתר הבית של התוכנה"""
         import webbrowser
-        webbrowser.open('https://github.com/DARTYQO/Format-conversion')
+        webbrowser.open('https://github.com/DARTYQO/Format-conversion')  # החלף בכתובת האתר האמיתית
+    def show_about(self):
+        """הצגת חלון אודות"""
+        about_text = """
+        ממיר קבצים - גרסה 2.0
+        
+        תוכנה להמרה, מיזוג ופיצול של קבצים.
+        תומכת בפורמטים: PDF, DOCX, TXT
+        
+        תכונות עיקריות:
+        - המרה בין פורמטים שונים
+        - מיזוג מספר קבצים לקובץ אחד
+        - פיצול קבצים לפי גודל או מספר תווים
+        - תמיכה בגרירה ושחרור של קבצים
+        - תמיכה בקידודי טקסט שונים
+        - ממשק טאבים חדשני עם תמיכה ב:
+          * המרת קבצי טקסט
+          * המרת קבצי אודיו
+          * המרת קבצי וידאו
+          * המרת קבצי קוד
+        """
+        
+        QMessageBox.about(self, "אודות ממיר הקבצים", about_text)
+
+    def open_homepage(self):
+        """פתיחת אתר הבית של התוכנה"""
+        import webbrowser
+        webbrowser.open('https://github.com/DARTYQO/Format-conversion')  # החלף בכתובת האתר האמיתית
 
     def select_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        """בחירת תיקייה והוספת כל הקבצים הנתמכים מתוכה"""
+        folder = QFileDialog.getExistingDirectory(self, "בחר תיקייה")
         if folder:
             icon_provider = QFileIconProvider()
             for root, dirs, files in os.walk(folder):
                 for file in files:
                     file_path = os.path.join(root, file)
                     if file_path.endswith(('.pdf', '.docx', '.txt')):
+                        # בדיקה אם הקובץ כבר קיים ברשימה
                         exists = False
                         for i in range(self.files_list.count()):
                             if self.files_list.item(i).data(Qt.UserRole) == file_path:
@@ -300,34 +406,40 @@ class FileConverterApp(QMainWindow):
                             self.files_list.addItem(item)
                             self.selected_files.append(file_path)
             
-            self.status.showMessage(f"Files added from folder {folder}")
+            # עדכון סטטוס
+            self.status.showMessage(f"נוספו קבצים מהתיקייה {folder}")
 
     def open_output_directory(self):
+        """פתיחת תיקיית היעד"""
         output_dir = self.output_dir if hasattr(self, 'output_dir') and self.output_dir else self.output_folder
         if os.path.exists(output_dir):
             os.startfile(output_dir)
         else:
-            QMessageBox.information(self, "Info", "No output directory selected or the directory does not exist")
+            QMessageBox.information(self, "מידע", "לא נבחרה תיקיית יעד או שהתיקייה אינה קיימת")
 
     def open_file(self, file_path):
+        """פתיחת קובץ עם תוכנת ברירת המחדל"""
         try:
             os.startfile(file_path)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error opening file: {str(e)}")
+            QMessageBox.critical(self, "שגיאה", f"שגיאה בפתיחת הקובץ: {str(e)}")
 
     def show_context_menu(self, position):
+        """הצגת תפריט הקשר למקש ימני"""
         menu = QMenu()
         selected_items = self.files_list.selectedItems()
         
         if not selected_items:
             return
             
-        open_action = menu.addAction("Open File")
+        # פתיחת קובץ
+        open_action = menu.addAction("פתח קובץ")
         open_action.triggered.connect(lambda: self.open_file(selected_items[0].data(Qt.UserRole)))
         
         menu.addSeparator()
         
-        convert_menu = menu.addMenu("Convert to...")
+        # המרה לסוגי קבצים
+        convert_menu = menu.addMenu("המר ל...")
         pdf_action = convert_menu.addAction("PDF")
         pdf_action.triggered.connect(lambda: self.convert_selected_file(selected_items[0].data(Qt.UserRole), 'pdf'))
         
@@ -339,74 +451,93 @@ class FileConverterApp(QMainWindow):
         
         menu.addSeparator()
         
+        # מיזוג ופיצול
         if len(selected_items) > 1:
-            merge_menu = menu.addMenu("Merge...")
-            merge_all_action = merge_menu.addAction("Merge All")
+            merge_menu = menu.addMenu("מזג...")
+            merge_all_action = merge_menu.addAction("מזג הכל")
             merge_all_action.triggered.connect(self.merge_all_files)
             
-            merge_by_type_action = merge_menu.addAction("Merge by Type")
+            merge_by_type_action = merge_menu.addAction("מזג לפי סוג")
             merge_by_type_action.triggered.connect(self.merge_by_type)
         
-        split_menu = menu.addMenu("Split...")
-        split_size_action = split_menu.addAction("Split by Size")
+        split_menu = menu.addMenu("פצל...")
+        split_size_action = split_menu.addAction("פצל לפי גודל")
         split_size_action.triggered.connect(lambda: self.split_by_size_single(selected_items[0].data(Qt.UserRole)))
         
-        split_chars_action = split_menu.addAction("Split by Characters")
+        split_chars_action = split_menu.addAction("פצל לפי תווים")
         split_chars_action.triggered.connect(lambda: self.split_by_chars_single(selected_items[0].data(Qt.UserRole)))
         
         menu.addSeparator()
         
-        remove_action = menu.addAction("Remove")
+        # הסרת קובץ
+        remove_action = menu.addAction("הסר")
         remove_action.triggered.connect(lambda: self.remove_selected_item(selected_items[0]))
         
         menu.exec_(self.files_list.mapToGlobal(position))
 
     def remove_selected_item(self, item):
+        """הסרת פריט בודד מהרשימה"""
         file_path = item.data(Qt.UserRole)
         self.files_list.takeItem(self.files_list.row(item))
         if file_path in self.selected_files:
             self.selected_files.remove(file_path)
-        self.status.showMessage(f"The file {os.path.basename(file_path)} was removed from the list")
+        self.status.showMessage(f"הקובץ {os.path.basename(file_path)} הוסר מהרשימה")
 
     def convert_selected_file(self, file_path, target_format):
+        """המרת קובץ בודד לפורמט היעד"""
+        # שמירת הקובץ המקורי
         original_files = self.selected_files.copy()
         
+        # הגדרת הקובץ הנבחר כקובץ היחיד להמרה
         self.selected_files = [file_path]
         
-        self.format_combo.setCurrentText(target_format.upper())
+        # הגדרת פורמט היעד
+        self.selected_format = target_format
         
+        # ביצוע ההמרה
         self.convert_files()
         
+        # שחזור רשימת הקבצים המקורית
         self.selected_files = original_files
 
     def split_by_size_single(self, file_path):
+        """פיצול קובץ בודד לפי גודל"""
+        # שמירת הקובץ המקורי
         original_files = self.selected_files.copy()
         
+        # הגדרת הקובץ הנבחר כקובץ היחיד לפיצול
         self.selected_files = [file_path]
         
+        # ביצוע הפיצול
         self.split_by_size()
         
+        # שחזור רשימת הקבצים המקורית
         self.selected_files = original_files
 
     def split_by_chars_single(self, file_path):
+        """פיצול קובץ בודד לפי מספר תווים"""
+        # שמירת הקובץ המקורי
         original_files = self.selected_files.copy()
         
+        # הגדרת הקובץ הנבחר כקובץ היחיד לפיצול
         self.selected_files = [file_path]
         
+        # ביצוע הפיצול
         self.split_by_chars()
         
+        # שחזור רשימת הקבצים המקורית
         self.selected_files = original_files
 
     def convert_files(self):
         if not self.selected_files:
-            QMessageBox.warning(self, "Error", "No files selected for conversion.")
+            QMessageBox.warning(self, "שגיאה", "לא נבחרו קבצים להמרה.")
             return
         
         self.progress_bar.setVisible(True)
         self.progress_bar.setMaximum(len(self.selected_files))
         self.progress_bar.setValue(0)
         
-        target_format = self.format_combo.currentText().lower()
+        target_format = self.selected_format
         
         conversion_thread = threading.Thread(target=self.run_conversion, args=(target_format,))
         conversion_thread.start()
@@ -416,7 +547,7 @@ class FileConverterApp(QMainWindow):
         try:
             for i, file_path in enumerate(self.selected_files):
                 try:
-                    self.status.showMessage("Converting file...")
+                    self.status.showMessage("ממיר קובץ...")
                     input_ext = os.path.splitext(file_path)[1].lower()
                     
                     if input_ext == '.pdf' and target_format in ['docx', 'txt']:
@@ -429,11 +560,11 @@ class FileConverterApp(QMainWindow):
                     self.progress_bar.setValue(i + 1)
                     
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error converting file: {str(e)}")
+                    QMessageBox.critical(self, "שגיאה", f"שגיאה בהמרת הקובץ: {str(e)}")
                     return
             
             self.progress_bar.setVisible(False)
-            self.status.showMessage("Conversion completed successfully.")
+            self.status.showMessage("ההמרה הושלמה בהצלחה.")
         finally:
             QApplication.restoreOverrideCursor()
 
@@ -442,12 +573,14 @@ class FileConverterApp(QMainWindow):
                                   os.path.splitext(os.path.basename(input_path))[0] + f'.{target_format}')
         
         if target_format == 'docx':
+            # המרת PDF ל-DOCX
             doc = docx.Document()
             reader = PdfReader(input_path)
             for page in reader.pages:
                 doc.add_paragraph(page.extract_text())
             doc.save(output_path)
         elif target_format == 'txt':
+            # המרת PDF ל-TXT
             with open(output_path, 'w', encoding='utf-8') as f:
                 reader = PdfReader(input_path)
                 for page in reader.pages:
@@ -458,6 +591,7 @@ class FileConverterApp(QMainWindow):
                                   os.path.splitext(os.path.basename(input_path))[0] + f'.{target_format}')
         
         if target_format == 'pdf':
+            # המרת DOCX ל-PDF
             doc = docx.Document(input_path)
             c = canvas.Canvas(output_path, pagesize=letter)
             width, height = letter
@@ -469,6 +603,32 @@ class FileConverterApp(QMainWindow):
                     height = letter[1]
             c.save()
         elif target_format == 'txt':
+            # המרת DOCX ל-TXT
+            with open(output_path, 'w', encoding='utf-8') as f:
+                doc = docx.Document(input_path)
+                for para in doc.paragraphs:
+                    f.write(para.text + '\n')
+
+    def txt_to_document(self, input_path, target_format):
+        output_path = os.path.join(self.output_folder, 
+                                  os.path.splitext(os.path.basename(input_path))[0] + f'.{target_format}')
+        
+        if target_format == 'pdf':
+            # המרת TXT ל-PDF
+            c = canvas.Canvas(output_path, pagesize=letter)
+            width, height = letter
+            with open(input_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                for line in lines:
+                    c.drawString(72, height - 72, line.strip())
+                    height -= 12
+                    if height < 72:
+                        c.showPage()
+                        height = letter[1]
+            c.save()
+        elif target_format == 'docx':
+            # המרת TXT ל-DOCX
+            doc = docx.Document()
             with open(input_path, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
                 for line in lines:
@@ -491,18 +651,20 @@ class FileConverterApp(QMainWindow):
             json.dump(settings, f)
 
     def show_settings_dialog(self):
+        """הצגת חלון הגדרות"""
         dialog = QDialog(self)
-        dialog.setWindowTitle("Settings")
+        dialog.setWindowTitle("הגדרות")
         layout = QVBoxLayout()
         
-        output_group = QGroupBox("Output Directory")
+        # בחירת תיקיית יעד
+        output_group = QGroupBox("תיקיית יעד")
         output_layout = QHBoxLayout()
         
         self.output_dir_edit = QLineEdit()
         if hasattr(self, 'output_dir'):
             self.output_dir_edit.setText(self.output_dir)
         
-        browse_btn = QPushButton("Browse...")
+        browse_btn = QPushButton("עיון...")
         browse_btn.clicked.connect(self.browse_output_dir)
         
         output_layout.addWidget(self.output_dir_edit)
@@ -510,10 +672,11 @@ class FileConverterApp(QMainWindow):
         output_group.setLayout(output_layout)
         layout.addWidget(output_group)
         
+        # כפתורי אישור וביטול
         buttons = QHBoxLayout()
-        ok_btn = QPushButton("OK")
+        ok_btn = QPushButton("אישור")
         ok_btn.clicked.connect(lambda: self.save_settings(dialog))
-        cancel_btn = QPushButton("Cancel")
+        cancel_btn = QPushButton("ביטול")
         cancel_btn.clicked.connect(dialog.reject)
         
         buttons.addWidget(ok_btn)
@@ -524,50 +687,92 @@ class FileConverterApp(QMainWindow):
         dialog.exec_()
 
     def browse_output_dir(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+        """בחירת תיקיית יעד"""
+        dir_path = QFileDialog.getExistingDirectory(self, "בחר תיקיית יעד")
         if dir_path:
             self.output_dir_edit.setText(dir_path)
 
     def save_settings(self, dialog):
+        """שמירת הגדרות"""
         self.output_dir = self.output_dir_edit.text()
-        self.last_output_dir = self.output_dir
+        self.last_output_dir = self.output_dir  # שמירת תיקיית היעד האחרונה
         dialog.accept()
 
     def clear_file_list(self):
+        """ניקוי רשימת הקבצים"""
         self.files_list.clear()
         self.selected_files.clear()
-        self.status.showMessage("List cleared")
+        self.status.showMessage("הרשימה נוקתה")
 
     def change_theme(self, theme_name):
+        """שינוי ערכת נושא"""
+        base_style = STYLE_SHEET
+        
         if theme_name == "blue":
-            self.setStyleSheet("QMainWindow { background-color: #d0e7f9; }")
+            theme_style = """
+            QMainWindow { 
+                background-color: #d0e7f9; 
+            }
+            QPushButton#formatButton {
+                background-color: #ffffff;
+            }
+            QPushButton#formatButton:checked {
+                background-color: #b3d9ff;
+                border: 2px solid #0066cc;
+            }
+            """
         elif theme_name == "light_green":
-            self.setStyleSheet("QMainWindow { background-color: #d9f9d0; }")
+            theme_style = """
+            QMainWindow { 
+                background-color: #d9f9d0; 
+            }
+            QPushButton#formatButton {
+                background-color: #ffffff;
+            }
+            QPushButton#formatButton:checked {
+                background-color: #c1f0b4;
+                border: 2px solid #2d8515;
+            }
+            """
         elif theme_name == "yellow":
-            self.setStyleSheet("QMainWindow { background-color: #f9f9d0; }")
+            theme_style = """
+            QMainWindow { 
+                background-color: #f9f9d0; 
+            }
+            QPushButton#formatButton {
+                background-color: #ffffff;
+            }
+            QPushButton#formatButton:checked {
+                background-color: #fff3b3;
+                border: 2px solid #ccaa00;
+            }
+            """
         else:
-            self.setStyleSheet(STYLE_SHEET)
+            theme_style = ""
+        
+        # שילוב הסגנון הבסיסי עם ערכת הנושא
+        self.setStyleSheet(base_style + theme_style)
 
-    def try_read_text_file(self, file_path):
-        encodings = ['utf-8', 'utf-16', 'windows-1255', 'iso-8859-8', 'cp1255']
+    def on_format_selected(self, format_name):
+        """טיפול בבחירת פורמט"""
+        # עדכון הפורמט הנבחר
+        self.selected_format = format_name
         
-        for encoding in encodings:
-            try:
-                with open(file_path, 'r', encoding=encoding) as f:
-                    return f.read(), encoding
-            except UnicodeDecodeError:
-                continue
-            except Exception as e:
-                continue
-        
-        raise ValueError(f"Cannot read the file {os.path.basename(file_path)} with any of the supported encodings")
+        # ביטול כל הכפתורים האחרים
+        for btn in self.format_buttons:
+            if btn.text() != format_name:
+                btn.setChecked(False)
+            else:
+                btn.setChecked(True)
 
     def merge_all_files(self):
         try:
+            # בדיקה שיש קבצים ברשימה
             if not self.selected_files:
-                QMessageBox.warning(self, "Error", "No files selected for merging")
+                QMessageBox.warning(self, "שגיאה", "לא נבחרו קבצים למיזוג")
                 return
 
+            # קביעת סוג הקובץ לפי הקבצים שנבחרו
             file_types = set(os.path.splitext(f)[1].lower() for f in self.selected_files)
             filter_string = ""
             if '.pdf' in file_types:
@@ -577,14 +782,16 @@ class FileConverterApp(QMainWindow):
             if '.txt' in file_types:
                 filter_string += "Text Files (*.txt);;"
             if not filter_string:
-                QMessageBox.warning(self, "Error", "No suitable files for merging")
+                QMessageBox.warning(self, "שגיאה", "אין קבצים מתאימים למיזוג")
                 return
             
+            # הסרת ;; מהסוף אם קיים
             filter_string = filter_string.rstrip(';')
 
+            # פתיחת דיאלוג שמירת קובץ עם הפילטרים המתאימים
             output_file, selected_filter = QFileDialog.getSaveFileName(
                 self,
-                "Save Merged File",
+                "שמור קובץ ממוזג",
                 "",
                 filter_string
             )
@@ -596,24 +803,24 @@ class FileConverterApp(QMainWindow):
                 merger = PdfMerger()
                 pdf_files = [f for f in self.selected_files if f.endswith('.pdf')]
                 if not pdf_files:
-                    QMessageBox.warning(self, "Error", "No PDF files found for merging")
+                    QMessageBox.warning(self, "שגיאה", "לא נמצאו קבצי PDF למיזוג")
                     return
                 
                 for file in pdf_files:
                     try:
                         merger.append(file)
                     except Exception as e:
-                        QMessageBox.critical(self, "Error", f"Error merging file {os.path.basename(file)}: {str(e)}")
+                        QMessageBox.critical(self, "שגיאה", f"שגיאה במיזוג הקובץ {os.path.basename(file)}: {str(e)}")
                         return
                 
                 merger.write(output_file)
                 merger.close()
-                QMessageBox.information(self, "Success", "PDF files merged successfully")
+                QMessageBox.information(self, "הצלחה", "קבצי ה-PDF מוזגו בהצלחה")
                 
             elif output_file.endswith('.docx'):
                 docx_files = [f for f in self.selected_files if f.endswith('.docx')]
                 if not docx_files:
-                    QMessageBox.warning(self, "Error", "No DOCX files found for merging")
+                    QMessageBox.warning(self, "שגיאה", "לא נמצאו קבצי DOCX למיזוג")
                     return
                 
                 self.merge_docx_files(docx_files, output_file)
@@ -621,7 +828,7 @@ class FileConverterApp(QMainWindow):
             elif output_file.endswith('.txt'):
                 txt_files = [f for f in self.selected_files if f.endswith('.txt')]
                 if not txt_files:
-                    QMessageBox.warning(self, "Error", "No text files found for merging")
+                    QMessageBox.warning(self, "שגיאה", "לא נמצאו קבצי טקסט למיזוג")
                     return
                 
                 try:
@@ -629,33 +836,40 @@ class FileConverterApp(QMainWindow):
                         for file in txt_files:
                             try:
                                 content, _ = self.try_read_text_file(file)
-                                outfile.write(content + '\n\n')
+                                outfile.write(content + '\n\n')  # הוספת שתי שורות ריקות בין הקבצים
                             except Exception as e:
-                                QMessageBox.critical(self, "Error", f"Error reading file {os.path.basename(file)}: {str(e)}")
+                                QMessageBox.critical(self, "שגיאה", f"שגיאה בקריאת הקובץ {os.path.basename(file)}: {str(e)}")
                                 return
-                    QMessageBox.information(self, "Success", "Text files merged successfully")
+                    QMessageBox.information(self, "הצלחה", "קבצי הטקסט מוזגו בהצלחה")
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error saving merged file: {str(e)}")
+                    QMessageBox.critical(self, "שגיאה", f"שגיאה בשמירת הקובץ הממוזג: {str(e)}")
                     return
             
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Unexpected error: {str(e)}")
+            QMessageBox.critical(self, "שגיאה", f"שגיאה לא צפויה: {str(e)}")
 
     def merge_docx_files(self, files, output_file):
+        """מיזוג קבצי Word"""
         try:
-            merged_doc = docx.Document()
+            # יצירת מסמך חדש
+            merged_doc = Document()
             
             for i, file in enumerate(files):
                 try:
-                    current_doc = docx.Document(file)
+                    # פתיחת המסמך הנוכחי
+                    current_doc = Document(file)
                     
+                    # אם זה לא הקובץ הראשון, הוסף מעבר עמוד
                     if i > 0:
                         merged_doc.add_page_break()
                     
+                    # העתקת כל הפסקאות עם העיצוב שלהן
                     for paragraph in current_doc.paragraphs:
+                        # העתקת הפסקה עם העיצוב
                         new_paragraph = merged_doc.add_paragraph()
                         new_paragraph.alignment = paragraph.alignment
                         
+                        # העתקת הטקסט עם העיצוב
                         for run in paragraph.runs:
                             new_run = new_paragraph.add_run(run.text)
                             new_run.bold = run.bold
@@ -667,6 +881,7 @@ class FileConverterApp(QMainWindow):
                             if run.font.color.rgb:
                                 new_run.font.color.rgb = run.font.color.rgb
                     
+                    # העתקת טבלאות
                     for table in current_doc.tables:
                         new_table = merged_doc.add_table(rows=len(table.rows), cols=len(table.columns))
                         new_table.style = table.style
@@ -676,6 +891,7 @@ class FileConverterApp(QMainWindow):
                                 new_cell = new_table.cell(i, j)
                                 new_cell.text = cell.text
                                 
+                                # העתקת עיצוב התא
                                 if cell.paragraphs:
                                     for idx, paragraph in enumerate(cell.paragraphs):
                                         if idx == 0:
@@ -690,22 +906,24 @@ class FileConverterApp(QMainWindow):
                                             new_run.italic = run.italic
                                             new_run.underline = run.underline
                     
+                    # העתקת תמונות
                     for shape in current_doc.inline_shapes:
-                        if shape.type == 3:
+                        if shape.type == 3:  # תמונה
                             try:
                                 merged_doc.add_picture(shape._inline.graphic.graphicData.pic.blipFill.blip.embed)
                             except:
-                                pass
+                                pass  # אם יש בעיה בהעתקת תמונה, נמשיך הלאה
                 
                 except Exception as e:
-                    QMessageBox.warning(self, "Warning", f"Error merging file {os.path.basename(file)}: {str(e)}")
+                    QMessageBox.warning(self, "אזהרה", f"שגיאה במיזוג הקובץ {os.path.basename(file)}: {str(e)}")
                     continue
             
+            # שמירת המסמך הממוזג
             merged_doc.save(output_file)
-            QMessageBox.information(self, "Success", "Documents merged successfully")
+            QMessageBox.information(self, "הצלחה", "המסמכים מוזגו בהצלחה")
             
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error merging documents: {str(e)}")
+            QMessageBox.critical(self, "שגיאה", f"שגיאה במיזוג המסמכים: {str(e)}")
             return False
         
         return True
@@ -716,10 +934,10 @@ class FileConverterApp(QMainWindow):
             files_to_merge = [file for file in self.selected_files if file.endswith(selected_type)]
 
             if not files_to_merge:
-                QMessageBox.warning(self, "Error", f"No files of type {selected_type} found for merging")
+                QMessageBox.warning(self, "שגיאה", f"אין קבצים מסוג {selected_type} למיזוג")
                 return
 
-            output_file = QFileDialog.getSaveFileName(self, f"Save Merged {selected_type} File", "", f"{selected_type.upper()} Files (*.{selected_type})")[0]
+            output_file = QFileDialog.getSaveFileName(self, f"שמור קובץ {selected_type} ממוזג", "", f"{selected_type.upper()} Files (*.{selected_type})")[0]
             if not output_file:
                 return
 
@@ -729,31 +947,31 @@ class FileConverterApp(QMainWindow):
                     try:
                         merger.append(file)
                     except Exception as e:
-                        QMessageBox.critical(self, "Error", f"Error merging file {os.path.basename(file)}: {str(e)}")
+                        QMessageBox.critical(self, "שגיאה", f"שגיאה במיזוג הקובץ {os.path.basename(file)}: {str(e)}")
                         return
                 
                 try:
                     merger.write(output_file)
                     merger.close()
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error saving merged file: {str(e)}")
+                    QMessageBox.critical(self, "שגיאה", f"שגיאה בשמירת הקובץ הממוזג: {str(e)}")
                     return
                 
             elif selected_type == 'docx':
-                merged_doc = docx.Document()
+                merged_doc = Document()
                 for file in files_to_merge:
                     try:
-                        doc = docx.Document(file)
+                        doc = Document(file)
                         for paragraph in doc.paragraphs:
                             merged_doc.add_paragraph(paragraph.text)
                     except Exception as e:
-                        QMessageBox.critical(self, "Error", f"Error merging file {os.path.basename(file)}: {str(e)}")
+                        QMessageBox.critical(self, "שגיאה", f"שגיאה במיזוג הקובץ {os.path.basename(file)}: {str(e)}")
                         return
                 
                 try:
                     merged_doc.save(output_file)
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error saving merged file: {str(e)}")
+                    QMessageBox.critical(self, "שגיאה", f"שגיאה בשמירת הקובץ הממוזג: {str(e)}")
                     return
                 
             elif selected_type == 'txt':
@@ -764,16 +982,16 @@ class FileConverterApp(QMainWindow):
                                 content, _ = self.try_read_text_file(file)
                                 outfile.write(content + '\n')
                             except Exception as e:
-                                QMessageBox.critical(self, "Error", f"Error reading file {os.path.basename(file)}: {str(e)}")
+                                QMessageBox.critical(self, "שגיאה", f"שגיאה בקריאת הקובץ {os.path.basename(file)}: {str(e)}")
                                 return
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error saving merged file: {str(e)}")
+                    QMessageBox.critical(self, "שגיאה", f"שגיאה בשמירת הקובץ הממוזג: {str(e)}")
                     return
             
-            QMessageBox.information(self, "Success", "Files merged successfully")
+            QMessageBox.information(self, "הצלחה", "המיזוג הושלם בהצלחה")
             
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Unexpected error: {str(e)}")
+            QMessageBox.critical(self, "שגיאה", f"שגיאה לא צפויה: {str(e)}")
 
     def split_by_size(self):
         try:
@@ -791,15 +1009,16 @@ class FileConverterApp(QMainWindow):
                         current_size = 0
                         current_content = []
                         
-                        for line in content.splitlines(True): 
+                        for line in content.splitlines(True):  # keepends=True to keep newlines
                             line_size = len(line.encode(encoding))
                             if current_size + line_size > size_kb * 1024:
+                                # Write current chunk
                                 part_file = f"{base_name}_part{part_number}.txt"
                                 try:
                                     with open(part_file, 'w', encoding=encoding) as outfile:
                                         outfile.writelines(current_content)
                                 except Exception as e:
-                                    QMessageBox.critical(self, "Error", f"Error saving part {part_number}: {str(e)}")
+                                    QMessageBox.critical(self, "שגיאה", f"שגיאה בשמירת חלק {part_number}: {str(e)}")
                                     return
                                 
                                 part_number += 1
@@ -809,23 +1028,25 @@ class FileConverterApp(QMainWindow):
                                 current_size += line_size
                                 current_content.append(line)
                         
+                        # Write last chunk if exists
                         if current_content:
                             part_file = f"{base_name}_part{part_number}.txt"
                             try:
                                 with open(part_file, 'w', encoding=encoding) as outfile:
                                     outfile.writelines(current_content)
                             except Exception as e:
-                                QMessageBox.critical(self, "Error", f"Error saving last part: {str(e)}")
+                                QMessageBox.critical(self, "שגיאה", f"שגיאה בשמירת החלק האחרון: {str(e)}")
                                 return
                             
                     except Exception as e:
-                        QMessageBox.critical(self, "Error", f"Error reading file {os.path.basename(file)}: {str(e)}")
+                        QMessageBox.critical(self, "שגיאה", f"שגיאה בקריאת הקובץ {os.path.basename(file)}: {str(e)}")
                         continue
+                # TODO: Add splitting logic for PDF and DOCX if needed
             
-            QMessageBox.information(self, "Success", "Files split successfully")
+            QMessageBox.information(self, "הצלחה", "הפיצול הושלם בהצלחה")
             
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Unexpected error: {str(e)}")
+            QMessageBox.critical(self, "שגיאה", f"שגיאה לא צפויה: {str(e)}")
 
     def split_by_chars(self):
         try:
@@ -843,14 +1064,15 @@ class FileConverterApp(QMainWindow):
                         current_chars = 0
                         current_content = []
                         
-                        for line in content.splitlines(True): 
+                        for line in content.splitlines(True):  # keepends=True to keep newlines
                             if current_chars + len(line) > chars_count:
+                                # Write current chunk
                                 part_file = f"{base_name}_part{part_number}.txt"
                                 try:
                                     with open(part_file, 'w', encoding=encoding) as outfile:
                                         outfile.writelines(current_content)
                                 except Exception as e:
-                                    QMessageBox.critical(self, "Error", f"Error saving part {part_number}: {str(e)}")
+                                    QMessageBox.critical(self, "שגיאה", f"שגיאה בשמירת חלק {part_number}: {str(e)}")
                                     return
                                 
                                 part_number += 1
@@ -860,43 +1082,45 @@ class FileConverterApp(QMainWindow):
                                 current_chars += len(line)
                                 current_content.append(line)
                         
+                        # Write last chunk if exists
                         if current_content:
                             part_file = f"{base_name}_part{part_number}.txt"
                             try:
                                 with open(part_file, 'w', encoding=encoding) as outfile:
                                     outfile.writelines(current_content)
                             except Exception as e:
-                                QMessageBox.critical(self, "Error", f"Error saving last part: {str(e)}")
+                                QMessageBox.critical(self, "שגיאה", f"שגיאה בשמירת החלק האחרון: {str(e)}")
                                 return
                             
                     except Exception as e:
-                        QMessageBox.critical(self, "Error", f"Error reading file {os.path.basename(file)}: {str(e)}")
+                        QMessageBox.critical(self, "שגיאה", f"שגיאה בקריאת הקובץ {os.path.basename(file)}: {str(e)}")
                         continue
+                # TODO: Add splitting logic for PDF and DOCX if needed
             
-            QMessageBox.information(self, "Success", "Files split successfully")
+            QMessageBox.information(self, "הצלחה", "הפיצול הושלם בהצלחה")
             
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Unexpected error: {str(e)}")
+            QMessageBox.critical(self, "שגיאה", f"שגיאה לא צפויה: {str(e)}")
 
     def process_files(self):
         action = self.action_combo.currentText()
-        if action == 'Merge All':
+        if action == 'מיזוג הכל':
             self.merge_all_files()
-        elif action == 'Merge by Type':
+        elif action == 'מיזוג לפי סוג':
             self.merge_by_type()
-        elif action == 'Split by Size':
+        elif action == 'פיצול לפי גודל':
             self.split_by_size()
-        elif action == 'Split by Character Count':
+        elif action == 'פיצול לפי מספר תווים':
             self.split_by_chars()
 
     def on_action_changed(self):
         action = self.action_combo.currentText()
-        if action == 'Merge by Type':
+        if action == 'מיזוג לפי סוג':
             self.merge_type_combo.setVisible(True)
         else:
             self.merge_type_combo.setVisible(False)
 
-        if action in ['Split by Size', 'Split by Character Count']:
+        if action in ['פיצול לפי גודל', 'פיצול לפי מספר תווים']:
             self.split_value.setVisible(True)
             self.split_value_label.setVisible(True)
         else:
@@ -904,10 +1128,11 @@ class FileConverterApp(QMainWindow):
             self.split_value_label.setVisible(False)
 
     def select_files(self):
+        """בחירת קבצים להמרה"""
         try:
             files, _ = QFileDialog.getOpenFileNames(
                 self,
-                "Select Files",
+                "בחר קבצים",
                 "",
                 "Documents (*.pdf *.docx *.txt)"
             )
@@ -915,6 +1140,7 @@ class FileConverterApp(QMainWindow):
             if files:
                 icon_provider = QFileIconProvider()
                 for file_path in files:
+                    # בדיקה אם הקובץ כבר קיים ברשימה
                     exists = False
                     for i in range(self.files_list.count()):
                         if self.files_list.item(i).data(Qt.UserRole) == file_path:
@@ -928,12 +1154,32 @@ class FileConverterApp(QMainWindow):
                         self.files_list.addItem(item)
                         self.selected_files.append(file_path)
                 
-                self.status.showMessage(f"{len(files)} files selected")
+                # עדכון סטטוס
+                self.status.showMessage(f"{len(files)} קבצים נבחרו")
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Unexpected error: {str(e)}")
+            QMessageBox.critical(self, "שגיאה", f"שגיאה בלתי צפויה: {str(e)}")
+
+    def show_about(self):
+        """הצגת חלון אודות"""
+        about_text = """
+        ממיר קבצים - גרסה 1.0
+        
+        תוכנה להמרה, מיזוג ופיצול של קבצים.
+        תומכת בפורמטים: PDF, DOCX, TXT
+        
+        תכונות עיקריות:
+        - המרה בין פורמטים שונים
+        - מיזוג מספר קבצים לקובץ אחד
+        - פיצול קבצים לפי גודל או מספר תווים
+        - תמיכה בגרירה ושחרור של קבצים
+        - תמיכה בקידודי טקסט שונים
+        """
+        
+        QMessageBox.about(self, "אודות ממיר הקבצים", about_text)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = FileConverterApp()
     window.show()
     sys.exit(app.exec_())
+
