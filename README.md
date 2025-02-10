@@ -31,25 +31,27 @@ cd file-converter-pro
 pip install -r requirements.txt
 ```
 
-##הפעלה 🚀
-bash
+## הפעלה 🚀
+```bash
 CopyInsert in Terminal
 python main.py
-## מדריך שימוש מהיר 📘
--בחר קבצים להמרה
--בחר פורמט יעד
--לחץ "המר"
-## תכונות נוספות 🔧
--המרת קבצים בין פורמטים שונים
--מיזוג קבצים
--פיצול קבצים לפי גודל או מספר תווים
--תמיכה בגרירה ושחרור
--תמיכה במספר קידודי טקסט
+```
 
-##רישיון 📄
--רישיון MIT
+## מדריך שימוש מהיר 📘
+ * בחר קבצים להמרה
+ * בחר פורמט יעד
+ * לחץ "המר"
+## תכונות נוספות 🔧
+ * המרת קבצים בין פורמטים שונים
+ * מיזוג קבצים
+ * פיצול קבצים לפי גודל או מספר תווים
+ * תמיכה בגרירה ושחרור
+ * תמיכה במספר קידודי טקסט
+
+## רישיון 📄
+ * רישיון MIT
 ## תמיכה ומשוב
-למידע נוסף או דיווח על באגים, אנא צור קשר:
+ * למידע נוסף או דיווח על באגים, אנא צור קשר:
 - 📧 Email: ch05341315656@gmail.com
 - 🌐 GitHub: https://github.com/DARTYQO/Format-conversion
 
