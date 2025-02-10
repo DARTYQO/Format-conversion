@@ -32,8 +32,9 @@ pip install -r requirements.txt
 ```
 
 ## הפעלה 🚀
-```bash
 CopyInsert in Terminal
+```bash
+
 python main.py
 ```
 
@@ -41,19 +42,22 @@ python main.py
  * בחר קבצים להמרה
  * בחר פורמט יעד
  * לחץ "המר"
+ * 
+ * 
 ## תכונות נוספות 🔧
  * המרת קבצים בין פורמטים שונים
  * מיזוג קבצים
  * פיצול קבצים לפי גודל או מספר תווים
  * תמיכה בגרירה ושחרור
  * תמיכה במספר קידודי טקסט
+ * 
 
 ## רישיון 📄
- * רישיון MIT
+הפרויקט מופץ תחת רישיון MIT - ראה קובץ LICENSE לפרטים נוספים.
+
+
 ## תמיכה ומשוב
  * למידע נוסף או דיווח על באגים, אנא צור קשר:
 - 📧 Email: ch05341315656@gmail.com
 - 🌐 GitHub: https://github.com/DARTYQO/Format-conversion
 
-## רישיון
-הפרויקט מופץ תחת רישיון MIT - ראה קובץ LICENSE לפרטים נוספים.
