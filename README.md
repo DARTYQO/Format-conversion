@@ -29,6 +29,7 @@ File Converter Pro היא אפליקציית המרה, מיזוג ופיצול �
 git clone https://github.com/yourusername/file-converter-pro.git
 cd file-converter-pro
 pip install -r requirements.txt
+```
 
 ##הפעלה 🚀
 bash
