@@ -56,5 +56,3 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 For more information or to report any issues, please contact:
 - 📧 Email: ch05341315656@gmail.com
 - 🌐 GitHub: https://github.com/DARTYQO/Format-conversion
-
-שמור את הקוד הזה בקובץ בשם `CONTRIBUTING.md` בריפוזיטורי שלך.
