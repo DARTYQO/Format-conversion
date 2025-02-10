@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QHBoxLayout, QPushButton, QLabel, QFileDialog,
                            QComboBox, QToolBar, QStatusBar, QProgressBar,
                            QStyle, QMessageBox, QAction, QDialog, QFormLayout,
-                           QFrame, QCheckBox, QGroupBox, QListWidget, QListWidgetItem, QAbstractItemView, QMenu, QFileIconProvider, QSpinBox, QLineEdit)
+                           QFrame, QCheckBox, QGroupBox, QListWidget, QListWidgetItem, QAbstractItemView, QMenu, QFileIconProvider, QSpinBox, QLineEdit, QTabWidget)
 from PyQt5.QtCore import Qt, QSize, QFileInfo, QTextCodec
 from PyQt5.QtGui import QIcon, QFont, QPalette, QColor
 import docx
@@ -173,7 +173,10 @@ class FileConverterApp(QMainWindow):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         
+        # קריאה לפונקציות הראשוניות
         self.init_ui()
+        self.create_menus()
+        self.create_toolbar()
         
         # הגדרת הממשק והטעינה
         # self.setup_i18n()
@@ -183,6 +186,7 @@ class FileConverterApp(QMainWindow):
         self.setStyleSheet(STYLE_SHEET)
 
     def init_ui(self):
+        """הגדרת ממשק המשתמש הראשי"""
         self.setWindowTitle("Format conversion")
         self.setGeometry(100, 100, 1000, 600)
         
@@ -195,12 +199,6 @@ class FileConverterApp(QMainWindow):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
         
-        # יצירת סרגל כלים
-        self.create_toolbar()
-        
-        # יצירת תפריטים
-        self.create_menus()
-        
         # יצירת מסגרת ראשית
         main_frame = QFrame()
         main_frame.setObjectName("mainFrame")
@@ -208,6 +206,13 @@ class FileConverterApp(QMainWindow):
         frame_layout = QHBoxLayout(main_frame)
         frame_layout.setContentsMargins(20, 20, 20, 20)
         frame_layout.setSpacing(20)
+        
+        # יצירת טאבים
+        self.tab_widget = QTabWidget()
+        
+        # טאב טקסט (הקיים)
+        text_tab = QWidget()
+        text_layout = QVBoxLayout(text_tab)
         
         # אזור שמאל - רשימת קבצים
         files_group = QGroupBox("קבצים שנבחרו")
@@ -221,7 +226,6 @@ class FileConverterApp(QMainWindow):
         files_layout.addWidget(self.files_list)
         
         files_group.setLayout(files_layout)
-        frame_layout.addWidget(files_group)
         
         # אזור ימין - הגדרות
         right_layout = QVBoxLayout()
@@ -297,8 +301,51 @@ class FileConverterApp(QMainWindow):
         merge_split_group.setLayout(merge_split_layout)
         right_layout.addWidget(merge_split_group)
         
-        frame_layout.addLayout(right_layout)
-        main_layout.addWidget(main_frame)
+        # סידור הלייאוט של טאב טקסט
+        text_layout_main = QHBoxLayout()
+        text_layout_main.addWidget(files_group)
+        text_layout_main.addLayout(right_layout)
+        text_layout.addLayout(text_layout_main)
+        
+        # הוספת הטאבים
+        self.tab_widget.addTab(text_tab, "טקסט")
+        
+        # טאב אודיו
+        audio_tab = QWidget()
+        audio_layout = QVBoxLayout(audio_tab)
+        audio_label = QLabel("המרת קבצי אודיו")
+        audio_drag_list = DragDropListWidget()
+        audio_convert_button = QPushButton("המר קבצי אודיו")
+        audio_layout.addWidget(audio_label)
+        audio_layout.addWidget(audio_drag_list)
+        audio_layout.addWidget(audio_convert_button)
+        self.tab_widget.addTab(audio_tab, "אודיו")
+        
+        # טאב וידאו
+        video_tab = QWidget()
+        video_layout = QVBoxLayout(video_tab)
+        video_label = QLabel("המרת קבצי וידאו")
+        video_drag_list = DragDropListWidget()
+        video_convert_button = QPushButton("המר קבצי וידאו")
+        video_layout.addWidget(video_label)
+        video_layout.addWidget(video_drag_list)
+        video_layout.addWidget(video_convert_button)
+        self.tab_widget.addTab(video_tab, "וידאו")
+        
+        # טאב קוד
+        code_tab = QWidget()
+        code_layout = QVBoxLayout(code_tab)
+        code_label = QLabel("המרת קבצי קוד")
+        code_drag_list = DragDropListWidget()
+        code_convert_button = QPushButton("המר קבצי קוד")
+        code_layout.addWidget(code_label)
+        code_layout.addWidget(code_drag_list)
+        code_layout.addWidget(code_convert_button)
+        self.tab_widget.addTab(code_tab, "קוד")
+        
+        # הוספת הטאבים לפריסה
+        frame_layout.addWidget(main_frame)
+        main_layout.addWidget(self.tab_widget)
         
         # סרגל התקדמות
         self.progress_bar = QProgressBar()
@@ -310,16 +357,6 @@ class FileConverterApp(QMainWindow):
         self.setStatusBar(self.status)
         
         self.status.showMessage("מוכן")
-
-    def create_toolbar(self):
-        toolbar = QToolBar()
-        toolbar.setIconSize(QSize(24, 24))
-        self.addToolBar(Qt.TopToolBarArea, toolbar)
-        
-        # כפתור הגדרות פשוט
-        # settings_btn = QAction(QIcon.fromTheme("preferences-system"), "הגדרות", self)
-        # settings_btn.triggered.connect(self.show_settings_dialog)
-        # toolbar.addAction(settings_btn)
 
     def create_menus(self):
         """יצירת תפריטים"""
@@ -389,6 +426,71 @@ class FileConverterApp(QMainWindow):
         about_action = QAction('אודות', self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
+        
+        # אתר הבית
+        homepage_action = QAction('אתר הבית', self)
+        homepage_action.triggered.connect(self.open_homepage)
+        help_menu.addAction(homepage_action)
+
+    def create_toolbar(self):
+        """יצירת סרגל כלים"""
+        # הוסף את הפונקציה הזו מהקוד המקורי שלך
+        pass
+
+    def show_about(self):
+        """הצגת חלון אודות"""
+        about_text = """
+        ממיר קבצים - גרסה 2.0
+        
+        תוכנה להמרה, מיזוג ופיצול של קבצים.
+        תומכת בפורמטים: PDF, DOCX, TXT
+        
+        תכונות עיקריות:
+        - המרה בין פורמטים שונים
+        - מיזוג מספר קבצים לקובץ אחד
+        - פיצול קבצים לפי גודל או מספר תווים
+        - תמיכה בגרירה ושחרור של קבצים
+        - תמיכה בקידודי טקסט שונים
+        - ממשק טאבים חדשני עם תמיכה ב:
+          * המרת קבצי טקסט
+          * המרת קבצי אודיו
+          * המרת קבצי וידאו
+          * המרת קבצי קוד
+        """
+        
+        QMessageBox.about(self, "אודות ממיר הקבצים", about_text)
+
+    def open_homepage(self):
+        """פתיחת אתר הבית של התוכנה"""
+        import webbrowser
+        webbrowser.open('https://github.com/DARTYQO/Format-conversion')  # החלף בכתובת האתר האמיתית
+    def show_about(self):
+        """הצגת חלון אודות"""
+        about_text = """
+        ממיר קבצים - גרסה 2.0
+        
+        תוכנה להמרה, מיזוג ופיצול של קבצים.
+        תומכת בפורמטים: PDF, DOCX, TXT
+        
+        תכונות עיקריות:
+        - המרה בין פורמטים שונים
+        - מיזוג מספר קבצים לקובץ אחד
+        - פיצול קבצים לפי גודל או מספר תווים
+        - תמיכה בגרירה ושחרור של קבצים
+        - תמיכה בקידודי טקסט שונים
+        - ממשק טאבים חדשני עם תמיכה ב:
+          * המרת קבצי טקסט
+          * המרת קבצי אודיו
+          * המרת קבצי וידאו
+          * המרת קבצי קוד
+        """
+        
+        QMessageBox.about(self, "אודות ממיר הקבצים", about_text)
+
+    def open_homepage(self):
+        """פתיחת אתר הבית של התוכנה"""
+        import webbrowser
+        webbrowser.open('https://github.com/DARTYQO/Format-conversion')  # החלף בכתובת האתר האמיתית
 
     def select_folder(self):
         """בחירת תיקייה והוספת כל הקבצים הנתמכים מתוכה"""
