@@ -1,0 +1,68 @@
+Format-conversion/
+├── src/
+│   ├── converters/
+│   │   ├── __init__.py
+│   │   ├── base.py          # BaseConverter ABC
+│   │   ├── pdf_converter.py # PDF conversion logic
+│   │   ├── docx_converter.py # DOCX conversion logic
+│   │   └── txt_converter.py  # TXT conversion logic
+│   │
+│   ├── ui/
+│   │   ├── __init__.py
+│   │   ├── main_window.py   # Main window UI class
+│   │   ├── main_window.ui   # Qt Designer UI file
+│   │   ├── dialogs/
+│   │   │   ├── __init__.py
+│   │   │   ├── settings_dialog.py
+│   │   │   └── about_dialog.py
+│   │   └── styles/
+│   │       ├── default.qss
+│   │       ├── dark.qss
+│   │       └── light.qss
+│   │
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── logger.py        # Logging configuration
+│   │   ├── settings.py      # Settings management
+│   │   ├── exceptions.py    # Custom exceptions
+│   │   └── validators.py    # Input validation
+│   │
+│   ├── resources/
+│   │   ├── icons/
+│   │   │   ├── app_icon.ico
+│   │   │   └── file_icons/
+│   │   ├── translations/
+│   │   │   ├── he.qm       # Hebrew translation
+│   │   │   └── en.qm       # English translation
+│   │   └── templates/
+│   │       └── conversion_templates.json
+│   │
+│   ├── tests/
+│   │   ├── __init__.py
+│   │   ├── test_converters.py
+│   │   ├── test_ui.py
+│   │   └── test_utils.py
+│   │
+│   ├── main.py             # Application entry point
+│   └── file_converter_app.py # Main application class
+│
+├── docs/
+│   ├── README.md           # Project documentation
+│   ├── CONTRIBUTING.md     # Contribution guidelines
+│   └── api/
+│       └── converters.md   # API documentation
+│
+├── requirements/
+│   ├── base.txt           # Basic dependencies
+│   ├── dev.txt            # Development dependencies
+│   └── test.txt          # Testing dependencies
+│
+├── scripts/
+│   ├── build.py          # Build script
+│   └── install.py        # Installation script
+│
+├── .gitignore
+├── LICENSE
+├── README.md
+├── setup.py             # Package setup
+└── pyproject.toml       # Project metadata and dependencies
